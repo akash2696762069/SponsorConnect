@@ -1,0 +1,139 @@
+Hello, my name is Akash Gupta, and I am building a Telegram bot-based WebApp for a sponsorship agency. This platform will help small and medium creators connect with sponsorship opportunities. I’ve already set up the bot, and I have the bot token and admin ID. Now, I’m ready to develop the frontend and backend UI and logic.
+
+🎯 Purpose:
+To build a Telegram WebApp where:
+
+Creators can apply for sponsorships.
+
+Admin can manage sponsorships and creators.
+
+Everything is authenticated via Telegram login (no external login needed).
+
+📂 WebApp Sections
+1️⃣ Profile Section
+This section displays the user’s:
+
+Profile photo
+
+Telegram username
+
+Telegram handle
+
+Email
+
+🔧 Features:
+
+User can view and update their email or other editable profile fields.
+
+Changes are saved to a profile.json file.
+
+2️⃣ Dashboard Section
+This is the main landing screen of the WebApp after Telegram login.
+
+📌 Layout:
+
+Welcome message with the user’s name.
+
+A button at the top: "Link your platform" → redirects to Link Platform section.
+
+Below that, some featured sponsorships will be displayed as cards.
+
+At the bottom: “Explore More” button → redirects to View Sponsorship section.
+
+3️⃣ View Sponsorship Section
+This section displays all active sponsorships.
+
+📦 Each sponsorship appears in a rectangular card:
+
+Shows a banner image.
+
+Title of the sponsorship.
+
+🖱️ On click:
+
+Shows full sponsorship details.
+
+Displays an "Apply Now" button.
+
+📝 On Apply:
+User will be asked:
+
+Choose platform: (Facebook, YouTube, Instagram)
+
+Follower count
+
+Platform username
+
+Choose content category
+
+📂 All submitted data will be saved in apply.json.
+
+🔁 Admin will review the applications and either:
+
+Approve → Send “You are selected” message
+
+Reject → Send rejection message
+
+4️⃣ Link Platform Section
+This section allows users to link their social platforms.
+
+🔘 The user sees 3 buttons:
+
+YouTube
+
+Facebook
+
+Instagram
+Each with a [+] icon next to them.
+
+➕ On clicking [+] for a platform:
+User is asked:
+
+Platform username
+
+Follower count
+
+🧾 Then, a unique verification code is generated and shown.
+
+📌 The user must add this verification code to their bio/description on that platform.
+
+🕒 After that, they wait for admin approval.
+
+🗂 All submitted data is stored in platform_link.json.
+
+✅ Once the admin verifies the code:
+
+The platform shows a green tick ✅ and the username
+
+User can repeat this process for all platforms
+
+5️⃣ Add Payment Method Section
+In this section, users can add or update their payment details.
+
+📌 The following options are available:
+
+Add Bank Account (account number + IFSC)
+
+Add UPI Number (mobile number)
+
+Add UPI ID
+
+📂 All payment data is stored in payment_method.json.
+
+🔄 The user can update this info anytime.
+
+🔒 Admin Section (Admin Only)
+This section is only visible to the admin (checked using Telegram user ID).
+
+🛠️ Admin functionalities:
+
+Post new sponsorships
+
+Manage creator applications
+
+Approve/reject linked platforms
+
+Approve/reject sponsorship applications
+
+✅ Only the admin (me) can access and control this section.
+
