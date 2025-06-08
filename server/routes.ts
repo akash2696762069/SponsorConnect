@@ -6,65 +6,59 @@ import {
   insertApplicationSchema, insertPaymentMethodSchema 
 } from "@shared/schema";
 import { z } from "zod";
-import multer from 'multer';
-import { v2 as cloudinary } from 'cloudinary';
-// import fs from 'fs'; // Removed as no longer using file system
-// import path from 'path'; // Removed as no longer using file system
-// import { fileURLToPath } from "url"; // Removed as no longer using file system
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from "url";
 
-// const __filename = fileURLToPath(import.meta.url); // Removed
-// const __dirname = path.dirname(__filename); // Removed
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Removed file paths as no longer needed
-// const PROFILE_PATH = path.join(__dirname, 'profile.json');
-// const SPONSORSHIPS_PATH = path.join(__dirname, 'sponsorships.json');
-// const APPLICATIONS_PATH = path.join(__dirname, 'apply.json');
-// const PLATFORMS_PATH = path.join(__dirname, 'platforms.json');
-// const PAYMENT_METHODS_PATH = path.join(__dirname, 'payment_methods.json');
+const PROFILE_PATH = path.join(__dirname, 'profile.json');
+const SPONSORSHIPS_PATH = path.join(__dirname, 'sponsorships.json');
+const APPLICATIONS_PATH = path.join(__dirname, 'apply.json');
+const PLATFORMS_PATH = path.join(__dirname, 'platforms.json');
+const PAYMENT_METHODS_PATH = path.join(__dirname, 'payment_methods.json');
 
-// Removed file read/write functions
-// function readProfile() {
-//   if (!fs.existsSync(PROFILE_PATH)) return {};
-//   return JSON.parse(fs.readFileSync(PROFILE_PATH, 'utf-8'));
-// }
-// function writeProfile(data: any) {
-//   fs.writeFileSync(PROFILE_PATH, JSON.stringify(data, null, 2));
-// }
-// function readSponsorships() {
-//   if (!fs.existsSync(SPONSORSHIPS_PATH)) return [];
-//   return JSON.parse(fs.readFileSync(SPONSORSHIPS_PATH, 'utf-8'));
-// }
-// function readApplications() {
-//   if (!fs.existsSync(APPLICATIONS_PATH)) return [];
-//   return JSON.parse(fs.readFileSync(APPLICATIONS_PATH, 'utf-8'));
-// }
-// function writeApplications(data: any) {
-//   fs.writeFileSync(APPLICATIONS_PATH, JSON.stringify(data, null, 2));
-// }
-// function readPlatforms() {
-//   if (!fs.existsSync(PLATFORMS_PATH)) return [];
-//   return JSON.parse(fs.readFileSync(PLATFORMS_PATH, 'utf-8'));
-// }
-// function writePlatforms(data: any) {
-//   fs.writeFileSync(PLATFORMS_PATH, JSON.stringify(data, null, 2));
-// }
-// function readPaymentMethods() {
-//   if (!fs.existsSync(PAYMENT_METHODS_PATH)) return [];
-//   return JSON.parse(fs.readFileSync(PAYMENT_METHODS_PATH, 'utf-8'));
-// }
-// function writePaymentMethods(data: any) {
-//   fs.writeFileSync(PAYMENT_METHODS_PATH, JSON.stringify(data, null, 2));
-// }
+function readProfile() {
+  if (!fs.existsSync(PROFILE_PATH)) return {};
+  return JSON.parse(fs.readFileSync(PROFILE_PATH, 'utf-8'));
+}
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+function writeProfile(data: any) {
+  fs.writeFileSync(PROFILE_PATH, JSON.stringify(data, null, 2));
+}
 
-// Set up multer for memory storage
-const upload = multer({ storage: multer.memoryStorage() });
+function readSponsorships() {
+  if (!fs.existsSync(SPONSORSHIPS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(SPONSORSHIPS_PATH, 'utf-8'));
+}
+
+function readApplications() {
+  if (!fs.existsSync(APPLICATIONS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(APPLICATIONS_PATH, 'utf-8'));
+}
+
+function writeApplications(data: any) {
+  fs.writeFileSync(APPLICATIONS_PATH, JSON.stringify(data, null, 2));
+}
+
+function readPlatforms() {
+  if (!fs.existsSync(PLATFORMS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(PLATFORMS_PATH, 'utf-8'));
+}
+
+function writePlatforms(data: any) {
+  fs.writeFileSync(PLATFORMS_PATH, JSON.stringify(data, null, 2));
+}
+
+function readPaymentMethods() {
+  if (!fs.existsSync(PAYMENT_METHODS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(PAYMENT_METHODS_PATH, 'utf-8'));
+}
+
+function writePaymentMethods(data: any) {
+  fs.writeFileSync(PAYMENT_METHODS_PATH, JSON.stringify(data, null, 2));
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -72,12 +66,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/telegram", async (req, res) => {
     try {
       const { telegramId, username, firstName, lastName, profilePhoto } = req.body;
-
-      console.log("Received Telegram Auth Request:", { telegramId, username, firstName, lastName, profilePhoto });
       
       let user = await storage.getUserByTelegramId(telegramId);
       if (!user) {
-        console.log("User not found, creating new user...");
         const adminTelegramId = process.env.ADMIN_TELEGRAM_ID || "admin_id";
         user = await storage.createUser({
           telegramId,
@@ -88,17 +79,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: null,
           isAdmin: telegramId === adminTelegramId,
         });
-        console.log("New user created:", user);
-      } else {
-        console.log("User found:", user);
-        // Optional: Update user details if they change (e.g., username, photo)
-        // await storage.updateUser(user.id, { username, firstName, lastName, profilePhoto });
-        // console.log("User details updated:", user);
       }
       
       res.json(user);
     } catch (error) {
-      console.error("Error in /api/auth/telegram:", error);
       res.status(500).json({ message: "Failed to authenticate user" });
     }
   });
@@ -129,55 +113,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Profile photo upload endpoint
-  app.post("/api/upload/profile-photo", upload.single('profilePhoto'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const b64 = Buffer.from(req.file.buffer).toString("base64");
-      let dataURI = "data:" + req.file.mimetype + ";base64," + b64;
-
-      const result = await cloudinary.uploader.upload(dataURI, {
-        folder: "sponsorconnect_profiles", // Cloudinary folder name
-      });
-
-      res.json({ profilePhotoUrl: result.secure_url });
-    } catch (error) {
-      console.error("Error uploading profile photo:", error);
-      res.status(500).json({ message: "Failed to upload profile photo" });
-    }
-  });
-
   // Sponsorship routes
-  app.get("/api/sponsorships", async (req, res) => {
-    try {
-      const sponsorships = await storage.getAllSponsorships();
+  app.get("/api/sponsorships", (req, res) => {
+    const sponsorships = readSponsorships();
       res.json(sponsorships);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get sponsorships" });
-    }
   });
 
-  app.get("/api/sponsorship/:id", async (req, res) => {
-    try {
-      const s = await storage.getSponsorship(parseInt(req.params.id));
-      if (!s) return res.status(404).json({ message: 'Not found' });
-      res.json(s);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get sponsorship" });
-    }
+  app.get("/api/sponsorship/:id", (req, res) => {
+    const sponsorships = readSponsorships();
+    const s = sponsorships.find((x: any) => String(x.id) === String(req.params.id));
+    if (!s) return res.status(404).json({ message: 'Not found' });
+    res.json(s);
   });
 
-  app.post("/api/apply", async (req, res) => {
-    try {
-      const applicationData = insertApplicationSchema.parse(req.body);
-      const application = await storage.createApplication(applicationData);
-      res.status(201).json(application);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create application" });
-    }
+  app.post("/api/apply", (req, res) => {
+    const { sponsorshipId, platform, followerCount, username, category, userId } = req.body;
+    const applications = readApplications();
+    const newApp = {
+      id: applications.length + 1,
+      sponsorshipId,
+      platform,
+      followerCount,
+      username,
+      category,
+      userId,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    applications.push(newApp);
+    writeApplications(applications);
+    res.json({ success: true, application: newApp });
   });
 
   // Platform routes
@@ -190,34 +155,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/platforms', async (req, res) => {
-    try {
-      const platforms = await storage.getPendingPlatformVerifications(); // Assuming this was meant to be all platforms
-      res.json(platforms);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get platforms" });
-    }
+  app.get('/api/platforms', (req, res) => {
+    const platforms = readPlatforms();
+    res.json(platforms);
   });
 
-  app.post('/api/platforms', async (req, res) => {
-    try {
-      const platformData = insertPlatformSchema.parse(req.body);
-      const newPlatform = await storage.createPlatform({ ...platformData, isVerified: false });
-      res.status(201).json(newPlatform);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create platform" });
-    }
+  app.post('/api/platforms', (req, res) => {
+    const { userId, platformType, username, followerCount } = req.body;
+    const platforms = readPlatforms();
+    const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const newPlatform = {
+      id: platforms.length + 1,
+      userId,
+      platformType,
+      username,
+      followerCount,
+        verificationCode,
+        isVerified: false,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+    platforms.push(newPlatform);
+    writePlatforms(platforms);
+    res.json({ success: true, platform: newPlatform });
   });
 
-  app.patch('/api/platforms/:id', async (req, res) => {
-    try {
-      const updates = insertPlatformSchema.partial().parse(req.body);
-      const platform = await storage.updatePlatform(parseInt(req.params.id), updates);
-      if (!platform) return res.status(404).json({ message: 'Platform not found' });
-      res.json(platform);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update platform" });
-    }
+  app.patch('/api/platforms/:id', (req, res) => {
+    const { isVerified, status } = req.body;
+    const platforms = readPlatforms();
+    const idx = platforms.findIndex((p: any) => String(p.id) === String(req.params.id));
+    if (idx === -1) return res.status(404).json({ message: 'Platform not found' });
+    if (typeof isVerified === 'boolean') platforms[idx].isVerified = isVerified;
+    if (status) platforms[idx].status = status;
+    writePlatforms(platforms);
+    res.json({ success: true, platform: platforms[idx] });
   });
 
   app.get("/api/platforms/pending", async (req, res) => {
@@ -277,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const paymentMethods = await storage.getUserPaymentMethods(parseInt(req.params.userId));
       res.json(paymentMethods);
     } catch (error) {
-      res.status(500).json({ message: "Failed to get user payment methods" });
+      res.status(500).json({ message: "Failed to get payment methods" });
     }
   });
 
@@ -304,6 +275,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const server = createServer(app);
-  return server;
+  app.get('/api/profile', (req, res) => {
+    const profile = readProfile();
+    res.json(profile);
+  });
+
+  app.post('/api/profile', (req, res) => {
+    const { username, telegramHandle, email, profilePhoto } = req.body;
+    const profile = { username, telegramHandle, email, profilePhoto };
+    writeProfile(profile);
+    res.json({ success: true, profile });
+  });
+
+  // Payment Methods
+  app.get('/api/payment-methods', (req, res) => {
+    const methods = readPaymentMethods();
+    res.json(methods);
+  });
+  app.post('/api/payment-methods', (req, res) => {
+    const { userId, type, accountNumber, ifscCode, upiNumber, upiId } = req.body;
+    const methods = readPaymentMethods();
+    const newMethod = {
+      id: methods.length + 1,
+      userId,
+      type,
+      accountNumber,
+      ifscCode,
+      upiNumber,
+      upiId,
+      createdAt: new Date().toISOString()
+    };
+    methods.push(newMethod);
+    writePaymentMethods(methods);
+    res.json({ success: true, method: newMethod });
+  });
+  app.patch('/api/payment-methods/:id', (req, res) => {
+    const methods = readPaymentMethods();
+    const idx = methods.findIndex((m: any) => String(m.id) === String(req.params.id));
+    if (idx === -1) return res.status(404).json({ message: 'Payment method not found' });
+    Object.assign(methods[idx], req.body);
+    writePaymentMethods(methods);
+    res.json({ success: true, method: methods[idx] });
+  });
+
+  // Add new sponsorship
+  app.post('/api/sponsorships', (req, res) => {
+    const { title, description, bannerImage, budgetMin, budgetMax, minFollowers, category, deadline, isActive } = req.body;
+    const sponsorships = readSponsorships();
+    const newSponsorship = {
+      id: sponsorships.length + 1,
+      title,
+      description,
+      bannerImage,
+      budgetMin,
+      budgetMax,
+      minFollowers,
+      category,
+      deadline,
+      isActive: isActive !== false,
+      createdAt: new Date().toISOString()
+    };
+    sponsorships.push(newSponsorship);
+    fs.writeFileSync(SPONSORSHIPS_PATH, JSON.stringify(sponsorships, null, 2));
+    res.json({ success: true, sponsorship: newSponsorship });
+  });
+  // Update sponsorship
+  app.patch('/api/sponsorships/:id', (req, res) => {
+    const sponsorships = readSponsorships();
+    const idx = sponsorships.findIndex((s: any) => String(s.id) === String(req.params.id));
+    if (idx === -1) return res.status(404).json({ message: 'Sponsorship not found' });
+    Object.assign(sponsorships[idx], req.body);
+    fs.writeFileSync(SPONSORSHIPS_PATH, JSON.stringify(sponsorships, null, 2));
+    res.json({ success: true, sponsorship: sponsorships[idx] });
+  });
+  // Get pending platforms
+  app.get('/api/platforms/pending', (req, res) => {
+    const platforms = readPlatforms();
+    const pending = platforms.filter((p: any) => !p.isVerified);
+    res.json(pending);
+  });
+  // Get pending applications
+  app.get('/api/applications/pending', (req, res) => {
+    const applications = readApplications();
+    const pending = applications.filter((a: any) => a.status === 'pending');
+    res.json(pending);
+  });
+  // Update application status
+  app.patch('/api/applications/:id', (req, res) => {
+    const applications = readApplications();
+    const idx = applications.findIndex((a: any) => String(a.id) === String(req.params.id));
+    if (idx === -1) return res.status(404).json({ message: 'Application not found' });
+    Object.assign(applications[idx], req.body);
+    writeApplications(applications);
+    res.json({ success: true, application: applications[idx] });
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
 }
