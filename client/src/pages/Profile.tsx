@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, CheckCircle, Clock, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,58 +10,105 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User, Platform, Application } from "@/lib/types";
 
-export default function Profile() {
-  const [profile, setProfile] = useState({
-    id: 1, // default id, update if needed
-    profilePhoto: "",
-    username: "",
-    telegramHandle: "",
-    email: ""
-  });
-  const [loading, setLoading] = useState(true);
+export default function Profile({ user: initialUser }: { user: User }) {
+  const [profile, setProfile] = useState<User>(initialUser);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        setProfile({
-          id: 1, // update if you have user id logic
-          profilePhoto: data.profilePhoto || "",
-          username: data.username || "",
-          telegramHandle: data.telegramHandle || "",
-          email: data.email || ""
+  // Mutation for profile update (existing logic, but now using the prop user and apiRequest)
+  const updateProfileMutation = useMutation({
+    mutationFn: (updatedData: Partial<User>) =>
+      apiRequest("PATCH", `/api/user/${profile.id}`, updatedData),
+    onSuccess: (response) => {
+      response.json().then((updatedUser) => {
+        setProfile((prev) => ({ ...prev, ...updatedUser }));
+        queryClient.invalidateQueries({ queryKey: ["/api/user", profile.id] });
+        toast({
+          title: "Profile Updated",
+          description: "Your profile information has been saved.",
         });
-        setLoading(false);
       });
-  }, []);
+      setSaving(false);
+    },
+    onError: (error) => {
+      console.error("Failed to update profile:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+      setSaving(false);
+    },
+  });
 
-  // Always call hooks at the top level
+  const handleSave = () => {
+    setSaving(true);
+    updateProfileMutation.mutate({
+      username: profile.username,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      email: profile.email,
+      // profilePhoto will be updated via a separate mutation
+    });
+  };
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("profilePhoto", file);
+      return apiRequest("POST", "/api/upload/profile-photo", formData, true); // true for multipart/form-data
+    },
+    onSuccess: (response) => {
+      response.json().then((data) => {
+        const newPhotoUrl = data.profilePhotoUrl; // Assuming backend returns this
+        setProfile((prev) => ({ ...prev, profilePhoto: newPhotoUrl })); // Update local state
+        updateProfileMutation.mutate({ profilePhoto: newPhotoUrl }); // Update profile in DB as well
+        toast({
+          title: "Profile Photo Uploaded",
+          description: "Your profile picture has been updated.",
+        });
+      });
+    },
+    onError: (error) => {
+      console.error("Failed to upload profile photo:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      uploadPhotoMutation.mutate(file);
+    }
+  };
+
+  const handleUploadButtonClick = () => {
+    fileInputRef.current?.click(); // Programmatically click the hidden file input
+  };
+
+  // Fetch platforms and applications using the user prop
   const { data: platforms = [] } = useQuery({
     queryKey: ["/api/platforms/user", profile.id],
     enabled: !!profile.id,
+    queryFn: async () => {
+        const res = await apiRequest("GET", `/api/platforms/user/${profile.id}`);
+        return res.json();
+    }
   });
   const { data: applications = [] } = useQuery({
     queryKey: ["/api/applications/user", profile.id],
     enabled: !!profile.id,
+    queryFn: async () => {
+        const res = await apiRequest("GET", `/api/applications/user/${profile.id}`);
+        return res.json();
+    }
   });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    await fetch("/api/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile)
-    });
-    setSaving(false);
-    alert("Profile updated successfully!");
-  };
-
-  if (loading) return <div>Loading...</div>;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -104,28 +151,27 @@ export default function Profile() {
           <CardContent>
             <div className="flex items-center space-x-4 mb-6">
               <img 
-                src={profile.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username)}&background=3b82f6&color=fff`}
+                src={profile.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username || profile.firstName)}&background=3b82f6&color=fff`}
                 alt="Profile" 
                 className="w-16 h-16 rounded-full object-cover"
               />
-              <div>
-                <h3 className="font-semibold text-gray-800">{profile.username}</h3>
-                <p className="text-gray-600">@{profile.telegramHandle}</p>
-                <p className="text-gray-500 text-sm">Telegram User</p>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUploadButtonClick}
+                disabled={uploadPhotoMutation.isPending}
+              >
+                {uploadPhotoMutation.isPending ? "Uploading..." : "Change Photo"}
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden" // Hide the default file input
+              />
             </div>
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="profilePhoto">Profile Photo URL</Label>
-                <Input
-                  id="profilePhoto"
-                  name="profilePhoto"
-                  type="text"
-                  placeholder="Profile photo URL"
-                  value={profile.profilePhoto}
-                  onChange={handleChange}
-                />
-              </div>
               <div>
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -133,18 +179,29 @@ export default function Profile() {
                   name="username"
                   type="text"
                   placeholder="Username"
-                  value={profile.username}
+                  value={profile.username || ""}
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <Label htmlFor="telegramHandle">Telegram Handle</Label>
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
-                  id="telegramHandle"
-                  name="telegramHandle"
+                  id="firstName"
+                  name="firstName"
                   type="text"
-                  placeholder="Telegram handle"
-                  value={profile.telegramHandle}
+                  placeholder="First Name"
+                  value={profile.firstName || ""}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  placeholder="Last Name"
+                  value={profile.lastName || ""}
                   onChange={handleChange}
                 />
               </div>
@@ -155,12 +212,12 @@ export default function Profile() {
                   name="email"
                     type="email"
                     placeholder="your.email@example.com"
-                  value={profile.email}
+                  value={profile.email || ""}
                   onChange={handleChange}
                 />
               </div>
-              <Button onClick={handleSave} disabled={saving} className="mt-2">
-                {saving ? "Saving..." : "Save"}
+              <Button onClick={handleSave} disabled={saving || updateProfileMutation.isPending} className="mt-2">
+                {saving || updateProfileMutation.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
           </CardContent>
@@ -208,47 +265,34 @@ export default function Profile() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-4 text-gray-500">
-                <p>No platforms connected yet.</p>
-                <p className="text-sm">Go to Platforms section to link your social accounts.</p>
-              </div>
+              <p className="text-gray-600">No platforms connected yet.</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Application History */}
+        {/* Applications */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Applications</CardTitle>
+            <CardTitle className="text-lg">My Applications</CardTitle>
           </CardHeader>
           <CardContent>
             {applications.length > 0 ? (
               <div className="space-y-3">
-                {applications.slice(0, 5).map((application) => (
+                {applications.map((app) => (
                   <div 
-                    key={application.id}
+                    key={app.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
                   >
                     <div>
-                      <p className="font-medium text-gray-800">
-                        Application #{application.id}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {application.platformType} • {application.category}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(application.createdAt).toLocaleDateString()}
-                      </p>
+                      <p className="font-medium text-gray-800">{app.platformType} - {app.platformUsername}</p>
+                      <p className="text-sm text-gray-600">{app.category} ({app.followerCount.toLocaleString()} followers)</p>
                     </div>
-                    {getStatusBadge(application.status)}
+                    {getStatusBadge(app.status)}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-4 text-gray-500">
-                <p>No applications yet.</p>
-                <p className="text-sm">Apply to sponsorships to see your history here.</p>
-              </div>
+              <p className="text-gray-600">No applications submitted yet.</p>
             )}
           </CardContent>
         </Card>
