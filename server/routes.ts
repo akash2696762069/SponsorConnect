@@ -114,35 +114,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sponsorship routes
-  app.get("/api/sponsorships", (req, res) => {
-    const sponsorships = readSponsorships();
+  app.get("/api/sponsorships", async (req, res) => {
+    try {
+      const sponsorships = await storage.getAllSponsorships();
       res.json(sponsorships);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get sponsorships" });
+    }
   });
 
-  app.get("/api/sponsorship/:id", (req, res) => {
-    const sponsorships = readSponsorships();
-    const s = sponsorships.find((x: any) => String(x.id) === String(req.params.id));
-    if (!s) return res.status(404).json({ message: 'Not found' });
-    res.json(s);
+  app.get("/api/sponsorship/:id", async (req, res) => {
+    try {
+      const s = await storage.getSponsorship(parseInt(req.params.id));
+      if (!s) return res.status(404).json({ message: 'Not found' });
+      res.json(s);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get sponsorship" });
+    }
   });
 
-  app.post("/api/apply", (req, res) => {
-    const { sponsorshipId, platform, followerCount, username, category, userId } = req.body;
-    const applications = readApplications();
-    const newApp = {
-      id: applications.length + 1,
-      sponsorshipId,
-      platform,
-      followerCount,
-      username,
-      category,
-      userId,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    applications.push(newApp);
-    writeApplications(applications);
-    res.json({ success: true, application: newApp });
+  app.post("/api/apply", async (req, res) => {
+    try {
+      const { sponsorshipId, platform, followerCount, username, category, userId } = req.body;
+      const newApp = await storage.createApplication({
+        sponsorshipId,
+        platformType: platform, // assuming platform matches platformType in schema
+        platformUsername: username,
+        followerCount,
+        category,
+        userId,
+        message: null, // Add a default message or handle it in client if needed
+        status: 'pending',
+      });
+      res.json({ success: true, application: newApp });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create application" });
+    }
   });
 
   // Platform routes
@@ -155,40 +162,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/platforms', (req, res) => {
-    const platforms = readPlatforms();
-    res.json(platforms);
+  app.get('/api/platforms', async (req, res) => {
+    try {
+      const platforms = await storage.getAllPlatforms(); // Assuming a new method getAllPlatforms in storage
+      res.json(platforms);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get platforms" });
+    }
   });
 
-  app.post('/api/platforms', (req, res) => {
-    const { userId, platformType, username, followerCount } = req.body;
-    const platforms = readPlatforms();
-    const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const newPlatform = {
-      id: platforms.length + 1,
-      userId,
-      platformType,
-      username,
-      followerCount,
+  app.post('/api/platforms', async (req, res) => {
+    try {
+      const { userId, platformType, username, followerCount } = req.body;
+      const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const newPlatform = await storage.createPlatform({
+        userId,
+        platformType,
+        username,
+        followerCount,
         verificationCode,
         isVerified: false,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    platforms.push(newPlatform);
-    writePlatforms(platforms);
-    res.json({ success: true, platform: newPlatform });
+      });
+      res.json({ success: true, platform: newPlatform });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add platform" });
+    }
   });
 
-  app.patch('/api/platforms/:id', (req, res) => {
-    const { isVerified, status } = req.body;
-    const platforms = readPlatforms();
-    const idx = platforms.findIndex((p: any) => String(p.id) === String(req.params.id));
-    if (idx === -1) return res.status(404).json({ message: 'Platform not found' });
-    if (typeof isVerified === 'boolean') platforms[idx].isVerified = isVerified;
-    if (status) platforms[idx].status = status;
-    writePlatforms(platforms);
-    res.json({ success: true, platform: platforms[idx] });
+  app.patch('/api/platforms/:id', async (req, res) => {
+    try {
+      const { isVerified, status } = req.body;
+      const updates: Partial<InsertPlatform> = {};
+      if (typeof isVerified === 'boolean') updates.isVerified = isVerified;
+      if (status) updates.status = status;
+
+      const platform = await storage.updatePlatform(parseInt(req.params.id), updates);
+      if (!platform) return res.status(404).json({ message: 'Platform not found' });
+      res.json({ success: true, platform: platform });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update platform" });
+    }
   });
 
   app.get("/api/platforms/pending", async (req, res) => {
@@ -248,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const paymentMethods = await storage.getUserPaymentMethods(parseInt(req.params.userId));
       res.json(paymentMethods);
     } catch (error) {
-      res.status(500).json({ message: "Failed to get payment methods" });
+      res.status(500).json({ message: "Failed to get user payment methods" });
     }
   });
 
