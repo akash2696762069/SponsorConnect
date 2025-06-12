@@ -11,13 +11,9 @@ const __dirname = path.dirname(__filename);
 
 const PUBLIC_PATH = path.join(__dirname, '..', 'dist', 'public');
 
-// console.log('Starting server...');
-
 // Telegram Bot Setup
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_ID = process.env.ADMIN_ID;
-
-// console.log('Environment variables:', { BOT_TOKEN: BOT_TOKEN ? 'Present' : 'Missing', ADMIN_ID: ADMIN_ID ? 'Present' : 'Missing' });
 
 if (!BOT_TOKEN) {
   throw new Error('BOT_TOKEN environment variable is required');
@@ -35,23 +31,19 @@ app.use(express.json());
 app.use(express.static(PUBLIC_PATH));
 
 // Initialize bot
-// console.log('Initializing bot...');
 const bot = new Telegraf(BOT_TOKEN);
 
 // Add error handler
 bot.catch((err, ctx) => {
-  // console.error('Bot error:', err);
   ctx.reply('Sorry, something went wrong!').catch(console.error);
 });
 
 // Add event handlers
 bot.telegram.getMe()
   .then((botInfo) => {
-    // console.log('Bot info:', botInfo);
-    // console.log('Bot is ready to receive messages!');
+    // Bot is ready
   })
   .catch((err) => {
-    // console.error('Failed to get bot info:', err);
     process.exit(1);
   });
 
@@ -145,14 +137,11 @@ bot.command('help', async (ctx) => {
 });
 
 // Start the bot
-// console.log('Launching bot...');
 bot.launch()
   .then(() => {
-    // console.log('Bot launched successfully!');
-    // console.log('Try sending /start to the bot');
+    // Bot launched successfully
   })
   .catch((err) => {
-    // console.error('Failed to launch bot:', err);
     process.exit(1);
   });
 

@@ -75,16 +75,6 @@ function AppContent() {
         lastName: telegramUser.last_name || null,
         profilePhoto: telegramUser.photo_url || null,
       });
-    } else {
-      // For development/testing purposes
-      const mockUser = {
-        telegramId: "123456789",
-        username: "testuser",
-        firstName: "Test",
-        lastName: "User",
-        profilePhoto: null,
-      };
-      authMutation.mutate(mockUser);
     }
   }, []);
 
